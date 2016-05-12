@@ -16,18 +16,6 @@
             background: -webkit-linear-gradient(#e4e0ba, #f7d9aa);
             background: linear-gradient(#e4e0ba, #f7d9aa);
         }
-
-        .circle{
-            width: 285px;
-            height: 285px;
-            border-radius: 100%;
-            border: 2px solid #666666;
-            position: absolute;
-            left: 50%;
-            margin-left: -145px;
-            top: 50%;
-            margin-top: -145px;
-        }
     </style>
     <script type="text/javascript" src="../js/three.min.js"></script>
     <script src="../js/libs/stats.min.js"></script>
@@ -37,9 +25,7 @@
     <script src="../js/renderers/CanvasRenderer.js"></script>
 </head>
 <body>
-<div class="world" id="world">
-    <div class="circle"></div>
-</div>
+<div class="world" id="world"></div>
 <script>
     var controls;
 
