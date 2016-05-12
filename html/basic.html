@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <style>
-        *{
+        * {
             margin: 0;
         }
-        .world{
+
+        .world {
             position: absolute;
             width: 100%;
             height: 100%;
@@ -15,26 +16,49 @@
             background: -webkit-linear-gradient(#e4e0ba, #f7d9aa);
             background: linear-gradient(#e4e0ba, #f7d9aa);
         }
+
+        .circle{
+            width: 285px;
+            height: 285px;
+            border-radius: 100%;
+            border: 2px solid #666666;
+            position: absolute;
+            left: 50%;
+            margin-left: -145px;
+            top: 50%;
+            margin-top: -145px;
+        }
     </style>
     <script type="text/javascript" src="../js/three.min.js"></script>
-
+    <script src="../js/libs/stats.min.js"></script>
+    <script src="../js/libs/tween.min.js"></script>
+    <script src="../js/controls/TrackballControls.js"></script>
+    <script src="../js/renderers/Projector.js"></script>
+    <script src="../js/renderers/CanvasRenderer.js"></script>
 </head>
 <body>
-<div class="world" id="world"></div>
+<div class="world" id="world">
+    <div class="circle"></div>
+</div>
 <script>
+    var controls;
 
+    var stats;
     var dpr = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
-    var scene,camera,renderer;
-    var aspectRatio,fieldOfView, nearPlane, farPlane;
-    var Height, Width;
+    var scene, camera, renderer;
+    var aspectRatio, fieldOfView, nearPlane, farPlane;
     var ball, dot;
+    var Height = window.innerHeight;
+    var Width = window.innerWidth;
+    var windowHalfX = window.innerWidth / 2;
+    var windowHalfY = window.innerHeight / 2;
+
 
     function createScene() {
         Height = window.innerHeight;
         Width = window.innerWidth;
 
         scene = new THREE.Scene();
-
 
         aspectRatio = Width / Height;
         fieldOfView = 45;
@@ -46,12 +70,24 @@
         camera.position.z = 200;
         camera.position.y = 0;
 
-        renderer = new THREE.WebGLRenderer({antialias: true });
+        controls = new THREE.TrackballControls( camera );
+        controls.addEventListener( 'change', render );
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+        controls.enableZoom = false;
+
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setClearColor( 0x111111 );
         renderer.setPixelRatio(dpr);
-        renderer.setSize(Width,Height);
+        renderer.setSize(Width, Height);
         renderer.shadowMap.enabled = true;
         container = document.getElementById('world');
         container.appendChild(renderer.domElement);
+
+        //fps
+        stats = new Stats();
+        container.appendChild( stats.dom );
+
     }
 
     // LIGHTS
@@ -63,53 +99,168 @@
         scene.add(ambientLight);
     }
 
+    function render() {
+        renderer.render(scene, camera);
+    }
+
     var Earth = function () {
         this.mesh = new THREE.Object3D();
-        var b = new Ball(50);
+        b = new Ball(30);
         this.mesh.add(b.mesh);
         var vertices = b.mesh.geometry.vertices;
-        var vertex = vertices[~~(Math.random()*vertices.length)];
-        var d = new Dot(vertex.x, vertex.y, vertex.z);
-        this.mesh.add(d.mesh);
+        for(var i = 0; i < 10; i++){
+            var vertex = vertices[~~(Math.random() * vertices.length)];
+            var d = new Dot(vertex.x, vertex.y, vertex.z);
+            this.mesh.add(d.mesh);
+        }
     };
+
 
     var Ball = function (radius) {
         var geom = new THREE.SphereGeometry(radius, 20, 10);
+        // important: by merging vertices we ensure the continuity of the waves
+        geom.mergeVertices();
+        var l = geom.vertices.length;
+
+        this.waves = [];
+
+        for (var i = 0; i < l; i++) {
+
+            var index = ~~(Math.random()*l);
+            var v = geom.vertices[index];
+            this.waves.push({
+                index: index,
+                y: v.y,
+                x: v.x,
+                z: v.z,
+                // a random angle
+                ang: Math.random() * Math.PI * 2,
+                // a random distance
+                amp: 1 + Math.random() * 1,
+                // a random speed between 0.016 and 0.048 radians / frame
+                speed: 0.016 + Math.random() * 0.032
+            });
+        }
+
         var mat = new THREE.MeshPhongMaterial({
             wireframe: true,
             color: 0x666666
         });
-        this.mesh = new THREE.Mesh(geom,mat);
+        this.mesh = new THREE.Mesh(geom, mat);
+    };
+
+    Ball.prototype.wave = function () {
+        var verts = this.mesh.geometry.vertices;
+        var l = this.waves.length;
+
+
+        for (var i = 0; i < l; i++) {
+            var vprops = this.waves[i];
+
+            var v = verts[ this.waves[i].index];
+            v.x = vprops.x + Math.cos(vprops.ang)*vprops.amp;
+            v.y = vprops.y + Math.sin(vprops.ang)*vprops.amp;
+
+            vprops.ang += vprops.speed;
+        }
+        this.mesh.geometry.verticesNeedUpdate=true;
+
     };
 
     var Dot = function (posX, posY, posZ) {
-        var geom = new THREE.SphereGeometry(0.7, 0, 0);
-        var mat = new THREE.MeshPhongMaterial({
-            color: 0x1dbc19,
-            shading: THREE.SmoothShading
-        });
-        this.mesh = new THREE.Mesh(geom,mat);
+
+        var material = new THREE.SpriteMaterial( {
+            map: new THREE.CanvasTexture( generateSprite() ),
+            blending: THREE.AdditiveBlending
+        } );
+        this.mesh = new THREE.Sprite(material);
+        this.mesh.scale.x = this.mesh.scale.y = 1.5;
+
         this.mesh.position.x = posX || 0;
         this.mesh.position.y = posY || 0;
         this.mesh.position.z = posZ || 0;
     };
 
+    function generateSprite() {
+        var canvas = document.createElement("canvas");
+        canvas.width = 16;
+        canvas.height = 16;
+        var context = canvas.getContext("2d");
+        var gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );
+        gradient.addColorStop( 0, 'rgba(255,255,255,1)' );
+        gradient.addColorStop( 0.2, 'rgba(153,248,153,1)' );
+        gradient.addColorStop( 0.3, 'rgba(0,255,0,1)' );
+        gradient.addColorStop( 1, 'rgba(0,0,0,1)' );
+        context.fillStyle = gradient;
+        context.fillRect( 0, 0, canvas.width, canvas.height );
+        return canvas;
+    }
+
     function createEarth() {
         earth = new Earth();
+        var geometry = new THREE.SphereGeometry( 28, 20, 10 );
+        var material = new THREE.MeshBasicMaterial( { color: 0x111111} );
+        var circle2 = new THREE.Mesh( geometry, material );
+        scene.add( circle2 );
         scene.add(earth.mesh);
+
     }
-    function loop(){
-        earth.mesh.rotation.y += 0.5 * Math.PI / 180;
+
+    function loop() {
+        b.wave();
+        earth.mesh.rotation.y += 0.2 * Math.PI / 180;
+        controls.update();
         renderer.render(scene, camera);
+        stats.update();
         requestAnimationFrame(loop);
     }
+
+
+    function normalize(v,vmin,vmax,tmin, tmax){
+        var nv = Math.max(Math.min(v,vmax), vmin);
+        var dv = vmax-vmin;
+        var pc = (nv-vmin)/dv;
+        var dt = tmax-tmin;
+        var tv = tmin + (pc*dt);
+        return tv;
+    }
+
+    function onMouseMove(e) {
+        var tempX = (e.clientX - windowHalfX) ;
+        var tempY = (e.clientY - windowHalfY) ;
+        var alpha = normalize(tempX, -windowHalfX, windowHalfX, -90, 90) * Math.PI / 180;
+        var beta = normalize(tempY, -windowHalfY, windowHalfY, -90, 90) * Math.PI / 180;
+        camera.position.x = 200 * Math.cos(beta) * Math.sin(alpha);
+        camera.position.z = 200 * Math.cos(beta) * Math.cos(alpha);
+        camera.position.y = 200 * Math.sin(beta);
+        camera.lookAt(scene.position)
+    }
+
+    function onWindowResize() {
+
+        windowHalfX = window.innerWidth / 2;
+        windowHalfY = window.innerHeight / 2;
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+    }
+
+    function initEvent() {
+        window.addEventListener( 'resize', onWindowResize, false );
+        window.addEventListener("mousemove",onMouseMove);
+    }
+
     function init() {
         createScene();
         createLights();
         createEarth();
+        initEvent();
         loop();
     }
-    
+
     init();
 
 </script>
