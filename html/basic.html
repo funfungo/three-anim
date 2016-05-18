@@ -33,7 +33,6 @@
     var dpr = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
     var scene, camera, renderer;
     var aspectRatio, fieldOfView, nearPlane, farPlane;
-    var ball, dot;
     var Height = window.innerHeight;
     var Width = window.innerWidth;
     var windowHalfX = window.innerWidth / 2;
@@ -89,14 +88,21 @@
         renderer.render(scene, camera);
     }
 
+    var smallBall, dots=[];
+
     var Earth = function () {
         this.mesh = new THREE.Object3D();
-        b = new Ball(30);
-        this.mesh.add(b.mesh);
-        var vertices = b.mesh.geometry.vertices;
+        smallBall = new Ball(30);
+        this.mesh.add(smallBall.mesh);
+        var vertices = smallBall.mesh.geometry.vertices;
         for(var i = 0; i < 10; i++){
-            var vertex = vertices[~~(Math.random() * vertices.length)];
+            var index = ~~(Math.random() * vertices.length);
+            var vertex = vertices[index];
             var d = new Dot(vertex.x, vertex.y, vertex.z);
+            dots.push({
+                dot: d,
+                index: index
+            });
             this.mesh.add(d.mesh);
         }
     };
@@ -154,7 +160,6 @@
     };
 
     var Dot = function (posX, posY, posZ) {
-
         var material = new THREE.SpriteMaterial( {
             map: new THREE.CanvasTexture( generateSprite() ),
             blending: THREE.AdditiveBlending
@@ -167,6 +172,10 @@
         this.mesh.position.z = posZ || 0;
     };
 
+    var Outline = function () {
+//        var mat = new THREE.SpriteMaterial();
+    };
+
     function generateSprite() {
         var canvas = document.createElement("canvas");
         canvas.width = 16;
@@ -176,7 +185,7 @@
         gradient.addColorStop( 0, 'rgba(255,255,255,1)' );
         gradient.addColorStop( 0.2, 'rgba(153,248,153,1)' );
         gradient.addColorStop( 0.3, 'rgba(0,255,0,1)' );
-        gradient.addColorStop( 1, 'rgba(0,0,0,1)' );
+        gradient.addColorStop( 1, 'rgba(0,0,0,0)' );
         context.fillStyle = gradient;
         context.fillRect( 0, 0, canvas.width, canvas.height );
         return canvas;
@@ -193,7 +202,13 @@
     }
 
     function loop() {
-        b.wave();
+        smallBall.wave();
+        for(var i = 0 ; i < dots.length; i++){
+            var index = dots[i].index;
+            dots[i].dot.mesh.position.x = smallBall.mesh.geometry.vertices[index].x;
+            dots[i].dot.mesh.position.y = smallBall.mesh.geometry.vertices[index].y;
+            dots[i].dot.mesh.position.z = smallBall.mesh.geometry.vertices[index].z;
+        }
         earth.mesh.rotation.y += 0.2 * Math.PI / 180;
         controls.update();
         renderer.render(scene, camera);
@@ -229,14 +244,13 @@
 
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
-
         renderer.setSize( window.innerWidth, window.innerHeight );
 
     }
 
     function initEvent() {
         window.addEventListener( 'resize', onWindowResize, false );
-        window.addEventListener("mousemove",onMouseMove);
+//        window.addEventListener("mousemove",onMouseMove);
     }
 
     function init() {
