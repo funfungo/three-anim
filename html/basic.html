@@ -17,17 +17,6 @@
             background: linear-gradient(#e4e0ba, #f7d9aa);
         }
 
-        .circle{
-            width: 285px;
-            height: 285px;
-            border-radius: 100%;
-            border: 2px solid #666666;
-            position: absolute;
-            left: 50%;
-            margin-left: -145px;
-            top: 50%;
-            margin-top: -145px;
-        }
     </style>
     <script type="text/javascript" src="../js/three.min.js"></script>
     <script src="../js/libs/stats.min.js"></script>
@@ -37,9 +26,7 @@
     <script src="../js/renderers/CanvasRenderer.js"></script>
 </head>
 <body>
-<div class="world" id="world">
-    <div class="circle"></div>
-</div>
+<div class="world" id="world"></div>
 <script>
     var controls;
 
@@ -47,7 +34,6 @@
     var dpr = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
     var scene, camera, renderer;
     var aspectRatio, fieldOfView, nearPlane, farPlane;
-    var ball, dot;
     var Height = window.innerHeight;
     var Width = window.innerWidth;
     var windowHalfX = window.innerWidth / 2;
@@ -103,17 +89,24 @@
         renderer.render(scene, camera);
     }
 
+    var ball, dot;
+
     var Earth = function () {
         this.mesh = new THREE.Object3D();
         b = new Ball(30);
         this.mesh.add(b.mesh);
+        var outline = new Outline();
         var vertices = b.mesh.geometry.vertices;
         for(var i = 0; i < 10; i++){
             var vertex = vertices[~~(Math.random() * vertices.length)];
             var d = new Dot(vertex.x, vertex.y, vertex.z);
             this.mesh.add(d.mesh);
         }
+        this.mesh.add(outline.mesh);
+
     };
+
+
 
 
     var Ball = function (radius) {
@@ -171,16 +164,27 @@
 
         var material = new THREE.SpriteMaterial( {
             map: new THREE.CanvasTexture( generateSprite() ),
-            blending: THREE.AdditiveBlending
+//            blending: THREE.AdditiveBlending
         } );
         this.mesh = new THREE.Sprite(material);
-        this.mesh.scale.x = this.mesh.scale.y = 1.5;
+        this.mesh.scale.x = this.mesh.scale.y = 2;
 
         this.mesh.position.x = posX || 0;
         this.mesh.position.y = posY || 0;
         this.mesh.position.z = posZ || 0;
     };
+    var Outline = function () {
+        var material = new THREE.SpriteMaterial( {
+            map: new THREE.CanvasTexture( generateOutline() ),
+            blending: THREE.AdditiveBlending
+        } );
+        this.mesh = new THREE.Sprite(material);
+        this.mesh.scale.x = this.mesh.scale.y = 100;
 
+        this.mesh.position.x = 0;
+        this.mesh.position.y = 0;
+        this.mesh.position.z = 0;
+    };
     function generateSprite() {
         var canvas = document.createElement("canvas");
         canvas.width = 16;
@@ -190,9 +194,22 @@
         gradient.addColorStop( 0, 'rgba(255,255,255,1)' );
         gradient.addColorStop( 0.2, 'rgba(153,248,153,1)' );
         gradient.addColorStop( 0.3, 'rgba(0,255,0,1)' );
-        gradient.addColorStop( 1, 'rgba(0,0,0,1)' );
+        gradient.addColorStop( 1, 'rgba(0,0,0,0)' );
         context.fillStyle = gradient;
         context.fillRect( 0, 0, canvas.width, canvas.height );
+        return canvas;
+    }
+
+    function generateOutline() {
+        var canvas = document.createElement("canvas");
+        canvas.width = 128;
+        canvas.height = 128;
+        var context = canvas.getContext("2d");
+        context.strokeStyle = "#ff0000";
+        context.lineWidth = 10;
+        context.beginPath();
+        context.arc( canvas.width/2, canvas.height/2, 30, 0, Math.PI*2, true );
+        context.stroke();
         return canvas;
     }
 
@@ -250,7 +267,7 @@
 
     function initEvent() {
         window.addEventListener( 'resize', onWindowResize, false );
-        window.addEventListener("mousemove",onMouseMove);
+//        window.addEventListener("mousemove",onMouseMove);
     }
 
     function init() {
