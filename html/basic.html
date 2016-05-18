@@ -7,16 +7,21 @@
         * {
             margin: 0;
         }
-
+        body{
+            background-color: #111;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
         .world {
             position: absolute;
+            left: 40%;
             width: 100%;
             height: 100%;
             overflow: hidden;
             background: -webkit-linear-gradient(#e4e0ba, #f7d9aa);
             background: linear-gradient(#e4e0ba, #f7d9aa);
         }
-
     </style>
     <script type="text/javascript" src="../js/three.min.js"></script>
     <script src="../js/libs/stats.min.js"></script>
@@ -29,7 +34,10 @@
 <div class="world" id="world"></div>
 <script>
     var controls;
-
+    var colors = {
+        darkGray: 0x222222,
+        lightGray: 0x555555
+    };
     var stats;
     var dpr = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
     var scene, camera, renderer;
@@ -60,7 +68,7 @@
         controls.addEventListener( 'change', render );
         controls.enableDamping = true;
         controls.dampingFactor = 0.25;
-        controls.enableZoom = false;
+        controls.noZoom = true;
 
         renderer = new THREE.WebGLRenderer({antialias: true});
         renderer.setClearColor( 0x111111 );
@@ -80,7 +88,6 @@
     var ambientLight, hemisphereLight, shadowLight;
 
     function createLights() {
-        //环境光
         ambientLight = new THREE.AmbientLight(0xffffff);
         scene.add(ambientLight);
     }
@@ -89,36 +96,58 @@
         renderer.render(scene, camera);
     }
 
-    var ball, dot;
+    var smallBall, outball, dots=[];
+
+
 
     var Earth = function () {
         this.mesh = new THREE.Object3D();
-        b = new Ball(30);
-        this.mesh.add(b.mesh);
-        var outline = new Outline();
-        var vertices = b.mesh.geometry.vertices;
+
+        //内部球,遮盖背后线条
+        var geometry = new THREE.SphereGeometry( 28, 20, 10 );
+        var material = new THREE.MeshBasicMaterial( { color: 0x111111} );
+        var circle2 = new THREE.Mesh(geometry, material );
+        this.mesh.add(circle2);
+
+        smallBall = new Ball(30);
+        this.mesh.add(smallBall.mesh);
+        var vertices = smallBall.mesh.geometry.vertices;
         for(var i = 0; i < 10; i++){
-            var vertex = vertices[~~(Math.random() * vertices.length)];
+            var index = ~~(Math.random() * vertices.length);
+            var vertex = vertices[index];
             var d = new Dot(vertex.x, vertex.y, vertex.z);
+            dots.push({
+                dot: d,
+                index: index
+            });
             this.mesh.add(d.mesh);
         }
+
+        var outline = new Outline();
         this.mesh.add(outline.mesh);
 
     };
 
 
-
+    var OutBall = function (radius) {
+        var geom = new THREE.SphereGeometry(radius, 20, 10);
+        var mat = new THREE.MeshPhongMaterial({
+            wireframe: true,
+            color: 0x222222
+        });
+        this.mesh = new THREE.Mesh(geom, mat);
+        this.mesh.rotation.x =  30 * Math.PI / 180;
+        this.mesh.rotation.y =  30 * Math.PI / 180;
+        this.mesh.rotation.z =  30 * Math.PI / 180;
+    };
 
     var Ball = function (radius) {
         var geom = new THREE.SphereGeometry(radius, 20, 10);
         // important: by merging vertices we ensure the continuity of the waves
         geom.mergeVertices();
         var l = geom.vertices.length;
-
         this.waves = [];
-
         for (var i = 0; i < l; i++) {
-
             var index = ~~(Math.random()*l);
             var v = geom.vertices[index];
             this.waves.push({
@@ -137,7 +166,7 @@
 
         var mat = new THREE.MeshPhongMaterial({
             wireframe: true,
-            color: 0x666666
+            color: colors.lightGray
         });
         this.mesh = new THREE.Mesh(geom, mat);
     };
@@ -145,8 +174,6 @@
     Ball.prototype.wave = function () {
         var verts = this.mesh.geometry.vertices;
         var l = this.waves.length;
-
-
         for (var i = 0; i < l; i++) {
             var vprops = this.waves[i];
 
@@ -161,7 +188,6 @@
     };
 
     var Dot = function (posX, posY, posZ) {
-
         var material = new THREE.SpriteMaterial( {
             map: new THREE.CanvasTexture( generateSprite() ),
 //            blending: THREE.AdditiveBlending
@@ -169,22 +195,20 @@
         this.mesh = new THREE.Sprite(material);
         this.mesh.scale.x = this.mesh.scale.y = 2;
 
-        this.mesh.position.x = posX || 0;
-        this.mesh.position.y = posY || 0;
-        this.mesh.position.z = posZ || 0;
     };
     var Outline = function () {
         var material = new THREE.SpriteMaterial( {
             map: new THREE.CanvasTexture( generateOutline() ),
-            blending: THREE.AdditiveBlending
+//            blending: THREE.AdditiveBlending
         } );
         this.mesh = new THREE.Sprite(material);
-        this.mesh.scale.x = this.mesh.scale.y = 100;
+        this.mesh.scale.x = this.mesh.scale.y = 65;
 
         this.mesh.position.x = 0;
         this.mesh.position.y = 0;
         this.mesh.position.z = 0;
     };
+
     function generateSprite() {
         var canvas = document.createElement("canvas");
         canvas.width = 16;
@@ -202,30 +226,49 @@
 
     function generateOutline() {
         var canvas = document.createElement("canvas");
-        canvas.width = 128;
-        canvas.height = 128;
+        canvas.width = 256;
+        canvas.height = 256;
         var context = canvas.getContext("2d");
-        context.strokeStyle = "#ff0000";
-        context.lineWidth = 10;
+        context.strokeStyle = "#555555";
+        context.lineWidth = 2;
         context.beginPath();
-        context.arc( canvas.width/2, canvas.height/2, 30, 0, Math.PI*2, true );
+        context.arc( canvas.width/2, canvas.height/2, 120, 0, Math.PI*2, true );
         context.stroke();
         return canvas;
     }
 
+
+
     function createEarth() {
         earth = new Earth();
-        var geometry = new THREE.SphereGeometry( 28, 20, 10 );
-        var material = new THREE.MeshBasicMaterial( { color: 0x111111} );
-        var circle2 = new THREE.Mesh( geometry, material );
-        scene.add( circle2 );
         scene.add(earth.mesh);
+        earth.mesh.position.x = -windowHalfX/6 + 40;
+        earth.mesh.position.y = 10;
+    }
 
+    var outball;
+    function createOutBall() {
+        outball = new OutBall(windowHalfX/6);
+        scene.add(outball.mesh);
+        outball.mesh.position.y = 20;
     }
 
     function loop() {
-        b.wave();
+        smallBall.wave();
+        for(var i = 0 ; i < dots.length; i++){
+            var index = dots[i].index;
+            dots[i].dot.mesh.position.x = smallBall.mesh.geometry.vertices[index].x;
+            dots[i].dot.mesh.position.y = smallBall.mesh.geometry.vertices[index].y;
+            dots[i].dot.mesh.position.z = smallBall.mesh.geometry.vertices[index].z;
+        }
         earth.mesh.rotation.y += 0.2 * Math.PI / 180;
+        earth.mesh.rotation.x += 0.2 * Math.PI / 180;
+        earth.mesh.rotation.z += 0.2 * Math.PI / 180;
+
+        outball.mesh.rotation.y += 0.02 * Math.PI / 180;
+        outball.mesh.rotation.y += 0.02 * Math.PI / 180;
+        outball.mesh.rotation.z += 0.02 * Math.PI / 180;
+
         controls.update();
         renderer.render(scene, camera);
         stats.update();
@@ -260,7 +303,6 @@
 
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
-
         renderer.setSize( window.innerWidth, window.innerHeight );
 
     }
@@ -274,6 +316,7 @@
         createScene();
         createLights();
         createEarth();
+        createOutBall();
         initEvent();
         loop();
     }

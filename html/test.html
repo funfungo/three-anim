@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>three.js canvas - particles - sprites</title>
+    <title>three.js canvas - lines - sphere</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
@@ -10,190 +10,171 @@
             margin: 0px;
             overflow: hidden;
         }
-
         a {
-            color: #0078ff;
+            color:#0078ff;
+        }
+        canvas { width: 100%; height: 100% }
+        .world{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
         }
     </style>
 </head>
 <body>
-
+<div class="world" id="world"></div>
 <script src="../js/three.min.js"></script>
-
-<script src="../js/renderers/Projector.js"></script>
-<script src="../js/renderers/CanvasRenderer.js"></script>
-
-<script src="../js/libs/stats.min.js"></script>
 <script src="../js/libs/tween.min.js"></script>
 
+
+<!--test-->
 <script>
+    var dpr = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
+    var scene,camera,renderer;
+    var aspectRatio,fieldOfView, nearPlane, farPlane;
+    var Height, Width;
+    var ball, dot;
+    var control = {};
 
-    var container, stats;
-    var camera, scene, renderer, particle;
-    var mouseX = 0, mouseY = 0;
+    function createScene() {
+        Height = window.innerHeight;
+        Width = window.innerWidth;
+        scene = new THREE.Scene();
+        aspectRatio = Width / Height;
+        fieldOfView = 45;
+        nearPlane = 1;
+        farPlane = 500;
+        camera = new THREE.PerspectiveCamera(fieldOfView, aspectRatio, nearPlane, farPlane);
+        camera.position.x = 0;
+        camera.position.z = 0;
+        camera.position.y = 0;
+        camera.tween = new TWEEN.Tween(camera.position)
+            .to({x: 0, y: 0, z: 200}, 1200)
+            .delay(1000)
+            .start();
+        renderer = new THREE.WebGLRenderer({antialias: true });
+        renderer.setPixelRatio(dpr);
+        renderer.setSize(Width,Height);
+        renderer.shadowMap.enabled = true;
+        container = document.getElementById('world');
+        container.appendChild(renderer.domElement);
+    }
+    // LIGHTS
+    var ambientLight, hemisphereLight, shadowLight;
+    function createLights() {
+        //环境光
+        ambientLight = new THREE.AmbientLight(0xffffff);
+        scene.add(ambientLight);
+    }
+    var dotArr = [];
+    var vertices = [];
+    var Earth = function () {
+        this.mesh = new THREE.Object3D();
+        var b = new Ball(30);
+        //this.mesh.add(b.mesh);
+        vertices = b.mesh.geometry.vertices;
+        for(var i = 0;i<vertices.length;i++) {
+            var x = Math.random() *300 -150;
+            var y = Math.random() *200 -100;
+            var z = Math.random() *500 -250;
+            var dots = new Dot(0, 0, 0);
+            dots.disX = (vertices[i].x - x)/60;
+            dots.disY = (vertices[i].y - y)/60;
+            dots.disZ = (vertices[i].z - z)/60;
+            this.mesh.add(dots.mesh);
+            dotArr.push(dots);
+            dots.tweenA = new TWEEN.Tween(dots.mesh.position)
+                .to({x: x, y: y, z: z},1000)
+                .easing(TWEEN.Easing.Back.Out)
+                .delay(1000)
+                .start();
+            dots.tweenB = new TWEEN.Tween(dots.mesh.position)
+                .to({x: vertices[i].x, y: vertices[i].y, z: vertices[i].z}, 2000)
+                .delay(2000)
+                .stop();
+            dots.tweenA.chain(dots.tweenB);
+        }
+    };
+    var Ball = function (radius) {
+        var geom = new THREE.SphereGeometry(radius, 30, 10);
+        var mat = new THREE.MeshPhongMaterial({
+            wireframe: true,
+            color: 0x666666
+        });
+        this.mesh = new THREE.Mesh(geom,mat);
+    };
 
-    var windowHalfX = window.innerWidth / 2;
-    var windowHalfY = window.innerHeight / 2;
+    var Dot = function (posX, posY, posZ) {
+        var geom = new THREE.SphereGeometry(0.2, 0, 0);
+        var mat = new THREE.MeshPhongMaterial({
+            //color: 0x1dbc19,
+            color:0x888888,
+            //shading: THREE.SmoothShading
+        });
+        this.mesh = new THREE.Mesh(geom,mat);
+        this.mesh.position.x = posX || 0;
+        this.mesh.position.y = posY || 0;
+        this.mesh.position.z = posZ || 0;
+    };
 
-    init();
-    animate();
+    function createEarth() {
+        earth = new Earth();
+        scene.add(earth.mesh);
+    }
+    var lineArr = [];
+
+    function loop(){
+        earth.mesh.rotation.y += 0.2 * Math.PI / 180;
+        earth.mesh.rotation.z += 0.2 * Math.PI / 180;
+        earth.mesh.rotation.x += 0.2 * Math.PI / 180;
+
+        for(var i=0,length=lineArr.length;i<length;i++) {
+            earth.mesh.remove(lineArr[i]);
+        }
+        console.log(lineArr.length);
+        lineArr.length = 0;
+        var circleGeometry = new THREE.CircleGeometry(30, 64, 0, control.pi);
+        circleGeometry.vertices.shift();
+        var circleMaterial = new THREE.LineBasicMaterial({color:0xcccccc,linewidth:0.2});
+        var circleLine = new THREE.Line(circleGeometry, circleMaterial);
+        earth.mesh.add(circleLine);
+        lineArr.push(circleLine);
+        TWEEN.update();
+        for(var i=1;i<30;i++){
+            var rotate = ((Math.PI*2)/30)*i;
+            var circle = circleLine.clone();
+            circle.rotateY(rotate);
+            //circle.rotateZ(i*0.5);
+            circle.rotateX(0.3);
+            earth.mesh.add(circle);
+            lineArr.push(circle);
+        }
+        renderer.render(scene, camera);
+        requestAnimationFrame(loop);
+    }
+
 
     function init() {
-
-        container = document.createElement( 'div' );
-        document.body.appendChild( container );
-
-        camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 5000 );
-        camera.position.z = 1000;
-
-        scene = new THREE.Scene();
-
-        var material = new THREE.SpriteMaterial( {
-            map: new THREE.CanvasTexture( generateSprite() ),
-            blending: THREE.AdditiveBlending
-        } );
-
-        for ( var i = 0; i < 1000; i++ ) {
-
-            particle = new THREE.Sprite( material );
-
-            initParticle( particle, i * 10 );
-
-            scene.add( particle );
-        }
-
-        renderer = new THREE.CanvasRenderer();
-        renderer.setClearColor( 0x000040 );
-        renderer.setPixelRatio( window.devicePixelRatio );
-        renderer.setSize( window.innerWidth, window.innerHeight );
-        container.appendChild( renderer.domElement );
-
-        stats = new Stats();
-        container.appendChild( stats.dom );
-
-        document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-        document.addEventListener( 'touchstart', onDocumentTouchStart, false );
-        document.addEventListener( 'touchmove', onDocumentTouchMove, false );
-
-        //
-
-        window.addEventListener( 'resize', onWindowResize, false );
-
+        createScene();
+        createLights();
+        createEarth();
+        control.pi = 0;
+        var increasePi = new TWEEN.Tween(control)
+            .to({pi: Math.PI * 2}, 5000)
+            .delay(1000);
+        dotArr[0].tweenB.chain(increasePi);
+        loop();
+        /*for(var i =30;i<60;i++){
+         dotArr[i].mesh.material = new THREE.MeshPhongMaterial({color: 0xff0000});
+         }
+         console.log(dotArr[1].mesh.material);*/
     }
-
-    function onWindowResize() {
-
-        windowHalfX = window.innerWidth / 2;
-        windowHalfY = window.innerHeight / 2;
-
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize( window.innerWidth, window.innerHeight );
-
-    }
-
-    function generateSprite() {
-
-        var canvas = document.createElement( 'canvas' );
-        canvas.width = 16;
-        canvas.height = 16;
-
-        var context = canvas.getContext( '2d' );
-        var gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );
-        gradient.addColorStop( 0, 'rgba(255,255,255,1)' );
-        gradient.addColorStop( 0.2, 'rgba(153,248,153,1)' );
-        gradient.addColorStop( 0.4, 'rgba(0,0,64,1)' );
-        gradient.addColorStop( 1, 'rgba(0,0,0,1)' );
-
-        context.fillStyle = gradient;
-        context.fillRect( 0, 0, canvas.width, canvas.height );
-
-        return canvas;
-    }
-
-    function initParticle( particle, delay ) {
-
-        var particle = this instanceof THREE.Sprite ? this : particle;
-        var delay = delay !== undefined ? delay : 0;
-
-        particle.position.set( 0, 0, 0 );
-        particle.scale.x = particle.scale.y = Math.random() * 32 + 16;
-
-        new TWEEN.Tween( particle )
-                .delay( delay )
-                .to( {}, 10000 )
-                .onComplete( initParticle )
-                .start();
-
-        new TWEEN.Tween( particle.position )
-                .delay( delay )
-                .to( { x: Math.random() * 4000 - 2000, y: Math.random() * 1000 - 500, z: Math.random() * 4000 - 2000 }, 10000 )
-                .start();
-
-        new TWEEN.Tween( particle.scale )
-                .delay( delay )
-                .to( { x: 0.01, y: 0.01 }, 10000 )
-                .start();
-
-    }
-
-    //
-
-    function onDocumentMouseMove( event ) {
-
-        mouseX = event.clientX - windowHalfX;
-        mouseY = event.clientY - windowHalfY;
-    }
-
-    function onDocumentTouchStart( event ) {
-
-        if ( event.touches.length == 1 ) {
-
-            event.preventDefault();
-
-            mouseX = event.touches[ 0 ].pageX - windowHalfX;
-            mouseY = event.touches[ 0 ].pageY - windowHalfY;
-
-        }
-
-    }
-
-    function onDocumentTouchMove( event ) {
-
-        if ( event.touches.length == 1 ) {
-
-            event.preventDefault();
-
-            mouseX = event.touches[ 0 ].pageX - windowHalfX;
-            mouseY = event.touches[ 0 ].pageY - windowHalfY;
-
-        }
-
-    }
-
-    //
-
-    function animate() {
-
-        requestAnimationFrame( animate );
-        render();
-        stats.update();
-
-    }
-
-    function render() {
-
-        TWEEN.update();
-
-        camera.position.x += ( mouseX - camera.position.x ) * 0.05;
-        camera.position.y += ( - mouseY - camera.position.y ) * 0.05;
-        camera.lookAt( scene.position );
-
-        renderer.render( scene, camera );
-
-    }
-
+    init();
 </script>
+
+
 </body>
 </html>
+Status API Training Shop Blog About
+© 2016 GitHub, Inc. Terms Privacy Security Contact Help
