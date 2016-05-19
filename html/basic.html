@@ -15,12 +15,11 @@
         }
         .world {
             position: absolute;
-            left: 40%;
+            right: -100px;
+            top: -100px;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: -webkit-linear-gradient(#e4e0ba, #f7d9aa);
-            background: linear-gradient(#e4e0ba, #f7d9aa);
         }
     </style>
     <script type="text/javascript" src="../js/three.min.js"></script>
@@ -46,8 +45,20 @@
     var Width = window.innerWidth;
     var windowHalfX = window.innerWidth / 2;
     var windowHalfY = window.innerHeight / 2;
+    var outBallRadius = 100;
+    var innerBallRadius = 20;
 
+    function consoleSize(zpos){
+        zpos = zpos || 0;
+        var vFOV = camera.fov * Math.PI / 180;
+        var height = 2 * Math.tan( vFOV / 2 ) * (camera.position.z + zpos); // visible height
 
+        var aspect = Width / Height;
+        var width = height * aspect;                  // visible width
+        console.log("height:" + height);
+        console.log("width:" + width);
+
+    }
     function createScene() {
         Height = window.innerHeight;
         Width = window.innerWidth;
@@ -57,12 +68,18 @@
         aspectRatio = Width / Height;
         fieldOfView = 45;
         nearPlane = 1;
-        farPlane = 500;
+        farPlane = 1000;
 
         camera = new THREE.PerspectiveCamera(fieldOfView, aspectRatio, nearPlane, farPlane);
-        camera.position.x = 0;
+        camera.position.x = 300;
         camera.position.z = 200;
-        camera.position.y = 0;
+        camera.position.y = 300;
+        camera.tweenA = new TWEEN.Tween(camera.position)
+            .to({x: 0, y: 0, z: 200}, 1000)
+            .delay(1000)
+            .start();
+
+
 
         controls = new THREE.TrackballControls( camera );
         controls.addEventListener( 'change', render );
@@ -81,7 +98,7 @@
         //fps
         stats = new Stats();
         container.appendChild( stats.dom );
-
+        consoleSize();
     }
 
     // LIGHTS
@@ -96,31 +113,71 @@
         renderer.render(scene, camera);
     }
 
-    var smallBall, outball, dots=[];
+    var darkInner,smallBall, outBall, dotsInfo=[], dotsCross=[];
 
 
 
     var Earth = function () {
         this.mesh = new THREE.Object3D();
-
         //内部球,遮盖背后线条
-        var geometry = new THREE.SphereGeometry( 28, 20, 10 );
-        var material = new THREE.MeshBasicMaterial( { color: 0x111111} );
-        var circle2 = new THREE.Mesh(geometry, material );
-        this.mesh.add(circle2);
-
-        smallBall = new Ball(30);
+        var geometry = new THREE.SphereGeometry( innerBallRadius-2, 20, 10 );
+        var material = new THREE.MeshBasicMaterial( {
+            color: 0x111111,
+            transparent: true,
+            opacity: 0
+        } );
+        darkInner = new THREE.Mesh(geometry, material );
+        darkInner.tween = new TWEEN.Tween(darkInner.material)
+            .to({opacity: 1},1000);
+        this.mesh.add(darkInner);
+        smallBall = new Ball(innerBallRadius);
+        smallBall.tween = new TWEEN.Tween(smallBall.mesh.material)
+            .to({opacity: 1},5000);
         this.mesh.add(smallBall.mesh);
         var vertices = smallBall.mesh.geometry.vertices;
         for(var i = 0; i < 10; i++){
             var index = ~~(Math.random() * vertices.length);
             var vertex = vertices[index];
-            var d = new Dot(vertex.x, vertex.y, vertex.z);
-            dots.push({
+            var d = new DotInfo(vertex.x, vertex.y, vertex.z);
+            d.tween = new TWEEN.Tween(d.mesh.material)
+                .to({opacity: 1}, 1000)
+                .delay(6000)
+                .start();
+            dotsInfo.push({
                 dot: d,
                 index: index
             });
             this.mesh.add(d.mesh);
+        }
+
+        for (var j = 0; j < vertices.length; j++) {
+
+            var v = vertices[j];
+
+            var x = Math.random() * 300 - 150;
+            var y = Math.random() * 200 - 100;
+            var z = Math.random() * 500 - 250;
+            var dot = new DotCross();
+            dot.x = x;
+            dot.y = y;
+            dot.z = z;
+            dot.distX = v.x;
+            dot.distY = v.y;
+            dot.distZ = v.z;
+            dot.tweenA = new TWEEN.Tween(dot.mesh.position)
+                .to({x: dot.x, y: dot.y, z: dot.z},1000)
+                .easing(TWEEN.Easing.Back.Out)
+                .delay(1000)
+                .start();
+            dot.tweenB = new TWEEN.Tween(dot.mesh.position)
+                .to({x: dot.distX, y: dot.distY, z: dot.distZ}, 2000)
+                .delay(2000);
+            dot.tweenC = new TWEEN.Tween(dot.mesh.material)
+                .to({opacity:0},1000);
+            dot.tweenA.chain(dot.tweenB);
+            dot.tweenB.chain(dot.tweenC);
+            dotsCross.push(dot);
+            this.mesh.add(dot.mesh);
         }
 
         var outline = new Outline();
@@ -166,7 +223,10 @@
 
         var mat = new THREE.MeshPhongMaterial({
             wireframe: true,
-            color: colors.lightGray
+            color: colors.lightGray,
+            transparent: true,
+            opacity: 0,
+            needsUpdate: true
         });
         this.mesh = new THREE.Mesh(geom, mat);
     };
@@ -187,23 +247,35 @@
 
     };
 
-    var Dot = function (posX, posY, posZ) {
+    var DotInfo = function (posX, posY, posZ) {
         var material = new THREE.SpriteMaterial( {
-            map: new THREE.CanvasTexture( generateSprite() ),
-//            blending: THREE.AdditiveBlending
+            map: new THREE.CanvasTexture(generateSprite()),
+            transparent: true,
+            opacity: 0,
+            needsUpdate: true
         } );
         this.mesh = new THREE.Sprite(material);
         this.mesh.scale.x = this.mesh.scale.y = 2;
 
     };
+    var DotCross = function () {
+        var geom = new THREE.SphereGeometry(0.2, 0, 0);
+        var mat = new THREE.MeshPhongMaterial({
+            color:colors.lightGray,
+            transparent: true,
+            opacity: 1
+        });
+        this.mesh = new THREE.Mesh(geom,mat);
+    };
     var Outline = function () {
         var material = new THREE.SpriteMaterial( {
             map: new THREE.CanvasTexture( generateOutline() ),
-//            blending: THREE.AdditiveBlending
+            transparent: true,
+            opacity: 0,
+            needsUpdate: true
         } );
         this.mesh = new THREE.Sprite(material);
-        this.mesh.scale.x = this.mesh.scale.y = 65;
-
+        this.mesh.scale.x = this.mesh.scale.y = 43;
         this.mesh.position.x = 0;
         this.mesh.position.y = 0;
         this.mesh.position.z = 0;
@@ -242,24 +314,24 @@
     function createEarth() {
         earth = new Earth();
         scene.add(earth.mesh);
-        earth.mesh.position.x = -windowHalfX/6 + 40;
-        earth.mesh.position.y = 10;
     }
 
     var outball;
     function createOutBall() {
-        outball = new OutBall(windowHalfX/6);
+        outball = new OutBall(outBallRadius);
         scene.add(outball.mesh);
+        outball.mesh.position.x= 30;
         outball.mesh.position.y = 20;
     }
 
     function loop() {
+        TWEEN.update();
         smallBall.wave();
-        for(var i = 0 ; i < dots.length; i++){
-            var index = dots[i].index;
-            dots[i].dot.mesh.position.x = smallBall.mesh.geometry.vertices[index].x;
-            dots[i].dot.mesh.position.y = smallBall.mesh.geometry.vertices[index].y;
-            dots[i].dot.mesh.position.z = smallBall.mesh.geometry.vertices[index].z;
+        for(var i = 0 ; i < dotsInfo.length; i++){
+            var index = dotsInfo[i].index;
+            dotsInfo[i].dot.mesh.position.x = smallBall.mesh.geometry.vertices[index].x;
+            dotsInfo[i].dot.mesh.position.y = smallBall.mesh.geometry.vertices[index].y;
+            dotsInfo[i].dot.mesh.position.z = smallBall.mesh.geometry.vertices[index].z;
         }
         earth.mesh.rotation.y += 0.2 * Math.PI / 180;
         earth.mesh.rotation.x += 0.2 * Math.PI / 180;
@@ -275,6 +347,11 @@
         requestAnimationFrame(loop);
     }
 
+    function initAnimation() {
+
+        dotsCross[0].tweenB.chain(smallBall.tween,darkInner.tween);
+
+    }
 
     function normalize(v,vmin,vmax,tmin, tmax){
         var nv = Math.max(Math.min(v,vmax), vmin);
@@ -317,6 +394,7 @@
         createLights();
         createEarth();
         createOutBall();
+        initAnimation();
         initEvent();
         loop();
     }

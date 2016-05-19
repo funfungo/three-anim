@@ -79,9 +79,6 @@
             var y = Math.random() *200 -100;
             var z = Math.random() *500 -250;
             var dots = new Dot(0, 0, 0);
-            dots.disX = (vertices[i].x - x)/60;
-            dots.disY = (vertices[i].y - y)/60;
-            dots.disZ = (vertices[i].z - z)/60;
             this.mesh.add(dots.mesh);
             dotArr.push(dots);
             dots.tweenA = new TWEEN.Tween(dots.mesh.position)
@@ -97,7 +94,7 @@
         }
     };
     var Ball = function (radius) {
-        var geom = new THREE.SphereGeometry(radius, 30, 10);
+        var geom = new THREE.SphereGeometry(radius, 20, 10);
         var mat = new THREE.MeshPhongMaterial({
             wireframe: true,
             color: 0x666666
@@ -176,5 +173,3 @@
 
 </body>
 </html>
-Status API Training Shop Blog About
-© 2016 GitHub, Inc. Terms Privacy Security Contact Help
