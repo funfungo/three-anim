@@ -64,7 +64,6 @@
     var windowHalfY = window.innerHeight / 2;
     var outBallRadius = 100;
     var innerBallRadius = 20;
-
     var raycaster, mouse;
 
     function consoleSize(zpos){
@@ -219,7 +218,6 @@
 
     };
 
-
     var OutBall = function (radius) {
         var geom = new THREE.SphereGeometry(radius, 20, 10);
         var mat = new THREE.MeshPhongMaterial({
@@ -250,7 +248,7 @@
                 ang: Math.random() * Math.PI * 2,
                 // a random distance
                 amp: 1 + Math.random() * 1,
-                // a random speed between 0.016 and 0.048 radians / frame
+                // a random speed between 0.016 and 0.032 radians / frame
                 speed: 0.016 + Math.random() * 0.032
             });
         }
