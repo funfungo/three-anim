@@ -184,7 +184,7 @@
                     })
                     .start();
             d.tweenB = new TWEEN.Tween(d.mesh.scale)
-                    .to({x:[5,2,5,2],y:[5,2,5,2]},1000)
+                    .to({x:[4,2,4,2],y:[4,2,4,2]},1000)
                     .delay(Math.random()*5000)
                     .repeat(Infinity)
                     .onComplete(function () {
@@ -367,7 +367,7 @@
         gradient.addColorStop(0, "rgba(255,255,255,1)");
         gradient.addColorStop(0.1, "rgba(153,248,153,1)");
         gradient.addColorStop(0.2, "rgba(0,255,0,1)");
-        gradient.addColorStop(0.5, "rgba(0,0,0,0)");
+        gradient.addColorStop(1, "rgba(0,0,0,0)");
         context.fillStyle = gradient;
         context.fillRect(0, 0, canvas.width, canvas.height);
         return canvas;
@@ -413,7 +413,7 @@
         var rotation = true;
         TWEEN.update();
         smallBall.wave();
-        raycaster.setFromCamera(mouse, camera);
+
         var intersects = raycaster.intersectObjects(dotsInfoObject.children);
 
 
@@ -458,7 +458,7 @@
 
     function initAnimation() {
 
-        dotsCross[0].tweenB.chain(smallBall.tween, darkInner.tween);
+        dotsCross[0].tweenB.chain(dotsCross[0].tweenC, smallBall.tween, darkInner.tween);
 
     }
 
@@ -488,7 +488,7 @@
 
         // calculate mouse position in normalized device coordinates
         // (-1 to +1) for both components
-
+        raycaster.setFromCamera(mouse, camera);
         mouse.clientX = event.clientX;
         mouse.clientY = event.clientY;
         mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
