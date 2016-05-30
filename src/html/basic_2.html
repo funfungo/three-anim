@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        * {
+            margin: 0;
+        }
+
+        body {
+            background-color: #211f20;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .world {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .hint {
+            opacity: 0;
+            width: 300px;
+            height: 129px;
+            background-image: url(../img/hint.png);
+            background-size: 100%;
+            position: absolute;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .close {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 25px;
+            height: 25px;
+        }
+    </style>s
+    <script type="text/javascript" src="../js/three.min.js"></script>
+    <script src="../js/libs/stats.min.js"></script>
+    <script src="../js/libs/tween.min.js"></script>
+    <script src="../js/controls/TrackballControls.js"></script>
+    <script src="../js/renderers/Projector.js"></script>
+    <script src="../js/renderers/CanvasRenderer.js"></script>
+</head>
+<body>
+<div class="world" id="world">
+    <div class="hint" id="hint">
+        <div class="close" id="close"></div>
+    </div>
+</div>
+<script>
+    var controls;
+    var colors = {
+        darkGray: 0x222222,
+        lightGray: 0x555555
+    };
+    var stats;
+    var dpr = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
+    var scene, camera, renderer;
+    var aspectRatio, fieldOfView, nearPlane, farPlane;
+    var Height = window.innerHeight;
+    var Width = window.innerWidth;
+    var windowHalfX = window.innerWidth / 2;
+    var windowHalfY = window.innerHeight / 2;
+    var outBallRadius = 100;
+    var innerBallRadius = 20;
+    var raycaster, mouse;
+    var loader = new THREE.TextureLoader();
+    var threshold = 10;
+
+    var shot;
+
+
+    function consoleSize(zpos) {
+        zpos = zpos || 0;
+        var vFOV = camera.fov * Math.PI / 180;
+        var height = 2 * Math.tan(vFOV / 2) * (camera.position.z + zpos); // visible height
+        var aspect = Width / Height;
+        var width = height * aspect;                  // visible width
+        console.log("height:" + height);
+        console.log("width:" + width);
+    }
+
+
+    function createScene() {
+        Height = window.innerHeight;
+        Width = window.innerWidth;
+
+        scene = new THREE.Scene();
+        aspectRatio = Width / Height;
+        fieldOfView = 45;
+        nearPlane = 1;
+        farPlane = 1000;
+
+        camera = new THREE.PerspectiveCamera(fieldOfView, aspectRatio, nearPlane, farPlane);
+        camera.position.x = 300;
+        camera.position.z = 200;
+        camera.position.y = 300;
+        camera.tweenA = new TWEEN.Tween(camera.position)
+                .to({x: 0, y: 0, z: 200}, 1000)
+                .delay(1000)
+                .start();
+
+        controls = new THREE.TrackballControls(camera);
+        controls.addEventListener("change", render);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+        controls.noZoom = true;
+
+        raycaster = new THREE.Raycaster();
+        raycaster.near = 0;
+        raycaster.far = 0;
+
+        mouse = new THREE.Vector2();
+
+
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setClearColor(0x111111);
+        renderer.setPixelRatio(dpr);
+        renderer.setSize(Width, Height);
+//        renderer.shadowMap.enabled = true;
+        container = document.getElementById("world");
+        container.appendChild(renderer.domElement);
+
+        //fps
+        stats = new Stats();
+        container.appendChild(stats.dom);
+
+
+    }
+
+    // LIGHTS
+    var ambientLight, hemisphereLight, shadowLight;
+
+    function createLights() {
+        ambientLight = new THREE.AmbientLight(0xffffff);
+        scene.add(ambientLight);
+    }
+
+    function render() {
+        renderer.render(scene, camera);
+    }
+
+    var darkInner, smallBall, outBall, dotsInfo = [], dotsCross = [];
+
+    var dotsInfoObject = new THREE.Object3D();
+
+    var dotShow;
+
+    var Earth = function () {
+        this.mesh = new THREE.Object3D();
+        //内部球,遮盖背后线条
+        var geometry = new THREE.SphereGeometry(innerBallRadius - 2, 20, 10);
+        var material = new THREE.MeshBasicMaterial({
+            color: 0x111111,
+            transparent: true,
+            opacity: 0
+        });
+        darkInner = new THREE.Mesh(geometry, material);
+        darkInner.tween = new TWEEN.Tween(darkInner.material)
+                .to({opacity: 1}, 1000);
+        this.mesh.add(darkInner);
+        smallBall = new Ball(innerBallRadius);
+        smallBall.tween = new TWEEN.Tween(smallBall.mesh.material)
+                .to({opacity: 1}, 5000);
+        this.mesh.add(smallBall.mesh);
+        var vertices = smallBall.mesh.geometry.vertices;
+
+        for (var i = 0; i < 10; i++) {
+            var index = ~~(Math.random() * vertices.length);
+            var vertex = vertices[index];
+            var d = new DotInfo(vertex.x, vertex.y, vertex.z);
+            d.tweenA = new TWEEN.Tween(d.mesh.material)
+                    .to({opacity: 1}, 1000)
+                    .delay(6000)
+                    .onComplete(function () {
+                        dotShow = true;
+                    })
+                    .start();
+            d.tweenB = new TWEEN.Tween(d.mesh.scale)
+                    .to({x:[5,2,5,2],y:[5,2,5,2]},1000)
+                    .delay(Math.random()*5000)
+                    .repeat(Infinity)
+                    .onComplete(function () {
+                    });
+            d.tweenA.chain(d.tweenB);
+            dotsInfo.push({
+                dot: d,
+                index: index
+            });
+            dotsInfoObject.add(d.mesh);
+            this.mesh.add(dotsInfoObject);
+        }
+
+        for (var j = 0; j < vertices.length; j++) {
+            var v = vertices[j];
+            var x = Math.random() * 300 - 150;
+            var y = Math.random() * 200 - 100;
+            var z = Math.random() * 500 - 250;
+            var dot = new DotCross();
+            dot.x = x;
+            dot.y = y;
+            dot.z = z;
+            dot.distX = v.x;
+            dot.distY = v.y;
+            dot.distZ = v.z;
+            dot.mesh.name = "dotcross";
+            dot.tweenA = new TWEEN.Tween(dot.mesh.position)
+                    .to({x: dot.x, y: dot.y, z: dot.z}, 1000)
+                    .easing(TWEEN.Easing.Back.Out)
+                    .delay(1000)
+                    .start();
+            dot.tweenB = new TWEEN.Tween(dot.mesh.position)
+                    .to({x: dot.distX, y: dot.distY, z: dot.distZ}, 2000)
+                    .delay(2000);
+            dot.tweenC = new TWEEN.Tween(dot.mesh.material)
+                    .to({opacity: 0}, 1000);
+            (function (j) {
+                dot.tweenC.onComplete(function () {
+                    earth.mesh.remove(dotsCross[j].mesh);
+                })
+            })(j);
+            dot.tweenA.chain(dot.tweenB);
+            dot.tweenB.chain(dot.tweenC);
+            dotsCross.push(dot);
+            this.mesh.add(dot.mesh);
+        }
+
+        var outline = new Outline();
+//        this.mesh.add(outline.mesh);
+
+    };
+
+    var OutBall = function (radius) {
+        var geom = new THREE.SphereGeometry(radius, 20, 10);
+        var mat = new THREE.MeshPhongMaterial({
+            wireframe: true,
+            color: 0x222222
+        });
+        this.mesh = new THREE.Mesh(geom, mat);
+        this.mesh.rotation.x = 30 * Math.PI / 180;
+        this.mesh.rotation.y = 30 * Math.PI / 180;
+        this.mesh.rotation.z = 30 * Math.PI / 180;
+    };
+
+    var Ball = function (radius) {
+        var geom = new THREE.SphereGeometry(radius, 20, 10);
+        // important: by merging vertices we ensure the continuity of the waves
+        geom.mergeVertices();
+        var l = geom.vertices.length;
+        this.waves = [];
+        for (var i = 0; i < l; i++) {
+            var index = ~~(Math.random() * l);
+            var v = geom.vertices[index];
+            this.waves.push({
+                index: index,
+                y: v.y,
+                x: v.x,
+                z: v.z,
+                // a random angle
+                ang: Math.random() * Math.PI * 2,
+                // a random distance
+                amp: 1 + Math.random() * 1,
+                // a random speed between 0.016 and 0.032 radians / frame
+                speed: 0.016 + Math.random() * 0.048
+            });
+        }
+
+        var mat = new THREE.MeshPhongMaterial({
+            wireframe: true,
+            color: colors.lightGray,
+            transparent: true,
+            opacity: 0,
+            needsUpdate: true
+        });
+        this.mesh = new THREE.Mesh(geom, mat);
+    };
+
+    Ball.prototype.wave = function () {
+        var verts = this.mesh.geometry.vertices;
+        var l = this.waves.length;
+        for (var i = 0; i < l; i++) {
+            var vprops = this.waves[i];
+            var v = verts[this.waves[i].index];
+            v.x = vprops.x + Math.cos(vprops.ang) * vprops.amp;
+            v.y = vprops.y + Math.sin(vprops.ang) * vprops.amp;
+
+            vprops.ang += vprops.speed;
+        }
+        this.mesh.geometry.verticesNeedUpdate = true;
+
+    };
+
+    var DotInfo = function (posX, posY, posZ) {
+        var material = new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(generateSprite()),
+            transparent: true,
+            opacity: 0,
+            needsUpdate: true
+        });
+        this.mesh = new THREE.Sprite(material);
+        this.mesh.scale.x = this.mesh.scale.y = 2;
+
+    };
+
+    //dotCross改为Sprite
+    var DotCross = function () {
+        var material;
+        material = new THREE.SpriteMaterial({
+            map: shot,
+            transparent: true,
+            opacity: 1,
+            needsUpdate: true
+        });
+        this.mesh = new THREE.Sprite(material);
+//        var material = new THREE.SpriteMaterial({
+//            map: new THREE.CanvasTexture(generateDot()),
+//            transparent: true,
+//            opacity: 1,
+//            needsUpdate: true
+//        });
+//        this.mesh.scale.x = this.mesh.scale.y = 0.8;
+    };
+    //dotCross改为Sprite
+
+    var Outline = function () {
+        var material = new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(generateOutline()),
+            transparent: true,
+            opacity: 0,
+            needsUpdate: true
+        });
+        this.mesh = new THREE.Sprite(material);
+        this.mesh.scale.x = this.mesh.scale.y = 43;
+        this.mesh.position.x = 0;
+        this.mesh.position.y = 0;
+        this.mesh.position.z = 0;
+    };
+
+    //SpriteDot
+    function generateDot() {
+        var canvas = document.createElement("canvas");
+        canvas.width = 16;
+        canvas.height = 16;
+        var context = canvas.getContext("2d");
+        context.fillStyle = "#555555";
+        context.beginPath();
+        context.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2);
+        context.closePath();
+        context.fill();
+        return canvas;
+    }
+    //SpriteDot
+
+    function generateSprite() {
+        var canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        var context = canvas.getContext("2d");
+        var gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(0.1, "rgba(153,248,153,1)");
+        gradient.addColorStop(0.2, "rgba(0,255,0,1)");
+        gradient.addColorStop(0.5, "rgba(0,0,0,0)");
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        return canvas;
+    }
+
+    function generateOutline() {
+        var canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        var context = canvas.getContext("2d");
+        context.strokeStyle = "#555555";
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(canvas.width / 2, canvas.height / 2, 120, 0, Math.PI * 2, true);
+        context.stroke();
+        return canvas;
+    }
+
+
+    function createEarth() {
+        earth = new Earth();
+        scene.add(earth.mesh);
+    }
+
+    var outball;
+    function createOutBall() {
+        outball = new OutBall(outBallRadius);
+        outball.rotationRate = 0.2;
+        outball.tween = new TWEEN.Tween(outball)
+                .to({rotationRate: 0.02}, 5000)
+                .delay(2000)
+                .start();
+        scene.add(outball.mesh);
+        outball.mesh.name = "outball";
+        outball.mesh.position.x = 30;
+        outball.mesh.position.y = 20;
+    }
+
+    var tip = document.getElementById("hint");
+    var tipShow = false;
+
+    function loop() {
+        var rotation = true;
+        TWEEN.update();
+        smallBall.wave();
+        raycaster.setFromCamera(mouse, camera);
+        var intersects = raycaster.intersectObjects(dotsInfoObject.children);
+
+
+        for (var i = 0; i < intersects.length; i++) {
+            console.log(mouse.clientX);
+            if (dotShow == true ) {
+                if (!tipShow) {
+                    tip.style.opacity = 1;
+                    tipShow = true;
+                    var x = mouse.clientX + 100 * Math.sin(Math.random() * Math.PI * 2);
+                    var y = mouse.clientY + 100 * Math.cos(Math.random() * Math.PI * 2);
+                    tip.style.left = x + "px";
+                    tip.style.top = y + "px";
+                }
+                rotation = false;
+            }
+        }
+
+
+        for (var i = 0; i < dotsInfo.length; i++) {
+            var index = dotsInfo[i].index;
+            dotsInfo[i].dot.mesh.position.x = smallBall.mesh.geometry.vertices[index].x;
+            dotsInfo[i].dot.mesh.position.y = smallBall.mesh.geometry.vertices[index].y;
+            dotsInfo[i].dot.mesh.position.z = smallBall.mesh.geometry.vertices[index].z;
+        }
+
+
+        if (rotation == true) {
+            earth.mesh.rotation.y += 0.2 * Math.PI / 180;
+            earth.mesh.rotation.x += 0.2 * Math.PI / 180;
+            earth.mesh.rotation.z += 0.2 * Math.PI / 180;
+        }
+
+        outball.mesh.rotation.y += outball.rotationRate * Math.PI / 180;
+        outball.mesh.rotation.y += outball.rotationRate * Math.PI / 180;
+        outball.mesh.rotation.z += outball.rotationRate * Math.PI / 180;
+        controls.update();
+        renderer.render(scene, camera);
+        stats.update();
+        requestAnimationFrame(loop);
+    }
+
+    function initAnimation() {
+
+        dotsCross[0].tweenB.chain(smallBall.tween, darkInner.tween);
+
+    }
+
+
+    function normalize(v, vmin, vmax, tmin, tmax) {
+        var nv = Math.max(Math.min(v, vmax), vmin);
+        var dv = vmax - vmin;
+        var pc = (nv - vmin) / dv;
+        var dt = tmax - tmin;
+        var tv = tmin + (pc * dt);
+        return tv;
+    }
+
+
+    function onWindowResize() {
+
+        windowHalfX = window.innerWidth / 2;
+        windowHalfY = window.innerHeight / 2;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+    }
+
+
+    function onMouseMove(event) {
+
+        // calculate mouse position in normalized device coordinates
+        // (-1 to +1) for both components
+
+        mouse.clientX = event.clientX;
+        mouse.clientY = event.clientY;
+        mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+        mouse.y = -( event.clientY / window.innerHeight ) * 2 + 1;
+
+    }
+
+    function initEvent() {
+        window.addEventListener("resize", onWindowResize, false);
+        window.addEventListener("mousemove", onMouseMove);
+
+        var tipClose = document.getElementById("close");
+        tipClose.addEventListener("click", function () {
+            tip.style.opacity = 0;
+            tipShow = false;
+        })
+    }
+
+    function init() {
+        createScene();
+        createLights();
+        createEarth();
+        createOutBall();
+        initAnimation();
+        initEvent();
+        loop();
+        tip.style.opacity = 0;
+    }
+
+    loader.load("../img/dotGray.png",function (texture) {
+        shot = texture;
+        init();
+    });
+
+</script>
+</body>
+</html>

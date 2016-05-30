@@ -8,17 +8,16 @@
 <canvas id="canvas"></canvas>
 <script>
     var canvas = document.getElementById("canvas");
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = 32;
+    canvas.height = 32;
     var context = canvas.getContext("2d");
-    context.lineWidth = 10;
-    context.strokeStyle = "#ff0000";
-    context.fillStyle = "#ff0000";
-    context.beginPath();
-    context.arc( canvas.width/2, canvas.height/2, 30, 0, Math.PI*2, true );
-    context.closePath();
-    context.stroke();
-    context.fill();
+    var gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+    gradient.addColorStop(0, "rgba(255,255,255,1)");
+    gradient.addColorStop(0.1, "rgba(153,248,153,1)");
+    gradient.addColorStop(0.2, "rgba(0,255,0,1)");
+    gradient.addColorStop(0.4, "rgba(0,0,0,0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
 </script>
 </body>
 </html>

@@ -60,6 +60,7 @@
         container = document.getElementById('world');
         container.appendChild(renderer.domElement);
     }
+
     // LIGHTS
     var ambientLight, hemisphereLight, shadowLight;
     function createLights() {
@@ -67,106 +68,21 @@
         ambientLight = new THREE.AmbientLight(0xffffff);
         scene.add(ambientLight);
     }
-    var dotArr = [];
-    var vertices = [];
-    var Earth = function () {
-        this.mesh = new THREE.Object3D();
-        var b = new Ball(30);
-        //this.mesh.add(b.mesh);
-        vertices = b.mesh.geometry.vertices;
-        for(var i = 0;i<vertices.length;i++) {
-            var x = Math.random() *300 -150;
-            var y = Math.random() *200 -100;
-            var z = Math.random() *500 -250;
-            var dots = new Dot(0, 0, 0);
-            this.mesh.add(dots.mesh);
-            dotArr.push(dots);
-            dots.tweenA = new TWEEN.Tween(dots.mesh.position)
-                .to({x: x, y: y, z: z},1000)
-                .easing(TWEEN.Easing.Back.Out)
-                .delay(1000)
-                .start();
-            dots.tweenB = new TWEEN.Tween(dots.mesh.position)
-                .to({x: vertices[i].x, y: vertices[i].y, z: vertices[i].z}, 2000)
-                .delay(2000)
-                .stop();
-            dots.tweenA.chain(dots.tweenB);
-        }
-    };
-    var Ball = function (radius) {
-        var geom = new THREE.SphereGeometry(radius, 20, 10);
-        var mat = new THREE.MeshPhongMaterial({
-            wireframe: true,
-            color: 0x666666
-        });
-        this.mesh = new THREE.Mesh(geom,mat);
-    };
 
-    var Dot = function (posX, posY, posZ) {
-        var geom = new THREE.SphereGeometry(0.2, 0, 0);
-        var mat = new THREE.MeshPhongMaterial({
-            //color: 0x1dbc19,
-            color:0x888888,
-            //shading: THREE.SmoothShading
-        });
-        this.mesh = new THREE.Mesh(geom,mat);
-        this.mesh.position.x = posX || 0;
-        this.mesh.position.y = posY || 0;
-        this.mesh.position.z = posZ || 0;
-    };
-
-    function createEarth() {
-        earth = new Earth();
-        scene.add(earth.mesh);
+    function creatDots() {
+        var dotGeometry = new THREE.Geometry();
+        dotGeometry.vertices.push(new THREE.Vector3( 0, 0, 0));
+        var dotMaterial = new THREE.PointsMaterial( { size: 100, sizeAttenuation: false,color: 0xffffff } );
+        var dot = new THREE.Points( dotGeometry, dotMaterial );
+        scene.add( dot );
     }
-    var lineArr = [];
-
-    function loop(){
-        earth.mesh.rotation.y += 0.2 * Math.PI / 180;
-        earth.mesh.rotation.z += 0.2 * Math.PI / 180;
-        earth.mesh.rotation.x += 0.2 * Math.PI / 180;
-
-        for(var i=0,length=lineArr.length;i<length;i++) {
-            earth.mesh.remove(lineArr[i]);
-        }
-        console.log(lineArr.length);
-        lineArr.length = 0;
-        var circleGeometry = new THREE.CircleGeometry(30, 64, 0, control.pi);
-        circleGeometry.vertices.shift();
-        var circleMaterial = new THREE.LineBasicMaterial({color:0xcccccc,linewidth:0.2});
-        var circleLine = new THREE.Line(circleGeometry, circleMaterial);
-        earth.mesh.add(circleLine);
-        lineArr.push(circleLine);
-        TWEEN.update();
-        for(var i=1;i<30;i++){
-            var rotate = ((Math.PI*2)/30)*i;
-            var circle = circleLine.clone();
-            circle.rotateY(rotate);
-            //circle.rotateZ(i*0.5);
-            circle.rotateX(0.3);
-            earth.mesh.add(circle);
-            lineArr.push(circle);
-        }
-        renderer.render(scene, camera);
-        requestAnimationFrame(loop);
-    }
-
 
     function init() {
         createScene();
         createLights();
-        createEarth();
-        control.pi = 0;
-        var increasePi = new TWEEN.Tween(control)
-            .to({pi: Math.PI * 2}, 5000)
-            .delay(1000);
-        dotArr[0].tweenB.chain(increasePi);
-        loop();
-        /*for(var i =30;i<60;i++){
-         dotArr[i].mesh.material = new THREE.MeshPhongMaterial({color: 0xff0000});
-         }
-         console.log(dotArr[1].mesh.material);*/
+        creatDots();
     }
+
     init();
 </script>
 
