@@ -72,8 +72,6 @@
     var innerBallRadius = 20;
     var raycaster, mouse;
     var loader = new THREE.TextureLoader();
-    var threshold = 10;
-
     var shot;
 
 
@@ -424,9 +422,9 @@
         }
 
         if (rotation == true) {
-            earth.mesh.rotation.y += 0.2 * Math.PI / 180;
-            earth.mesh.rotation.x += 0.2 * Math.PI / 180;
-            earth.mesh.rotation.z += 0.2 * Math.PI / 180;
+            earth.mesh.rotation.y -= 0.2 * Math.PI / 180;
+            earth.mesh.rotation.x -= 0.2 * Math.PI / 180;
+            earth.mesh.rotation.z -= 0.2 * Math.PI / 180;
         }
 
         outball.mesh.rotation.y += outball.rotationRate * Math.PI / 180;
