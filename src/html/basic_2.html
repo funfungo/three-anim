@@ -184,7 +184,7 @@
                     })
                     .start();
             d.tweenB = new TWEEN.Tween(d.mesh.scale)
-                    .to({x:[4,2,4,2],y:[4,2,4,2]},1000)
+                    .to({x:[6,3,6,3],y:[6,3,6,3]},1000)
                     .delay(Math.random()*5000)
                     .repeat(Infinity)
                     .onComplete(function () {
@@ -364,10 +364,11 @@
         canvas.height = 32;
         var context = canvas.getContext("2d");
         var gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
-        gradient.addColorStop(0, "rgba(255,255,255,1)");
+        gradient.addColorStop(0, "rgba(153,248,153,1)");
         gradient.addColorStop(0.1, "rgba(153,248,153,1)");
-        gradient.addColorStop(0.2, "rgba(0,255,0,1)");
-        gradient.addColorStop(1, "rgba(0,0,0,0)");
+        gradient.addColorStop(0.2, "rgba(4,190,2,0.5)");
+        gradient.addColorStop(0.4, "rgba(4,190,2,0.1)");
+        gradient.addColorStop(1, "rgba(4,190,2,0)");
         context.fillStyle = gradient;
         context.fillRect(0, 0, canvas.width, canvas.height);
         return canvas;
@@ -409,37 +410,18 @@
     var tip = document.getElementById("hint");
     var tipShow = false;
 
+
+    var rotation = true;
+
     function loop() {
-        var rotation = true;
         TWEEN.update();
         smallBall.wave();
-
-        var intersects = raycaster.intersectObjects(dotsInfoObject.children);
-
-
-        for (var i = 0; i < intersects.length; i++) {
-            console.log(mouse.clientX);
-            if (dotShow == true ) {
-                if (!tipShow) {
-                    tip.style.opacity = 1;
-                    tipShow = true;
-                    var x = mouse.clientX + 100 * Math.sin(Math.random() * Math.PI * 2);
-                    var y = mouse.clientY + 100 * Math.cos(Math.random() * Math.PI * 2);
-                    tip.style.left = x + "px";
-                    tip.style.top = y + "px";
-                }
-                rotation = false;
-            }
-        }
-
-
         for (var i = 0; i < dotsInfo.length; i++) {
             var index = dotsInfo[i].index;
             dotsInfo[i].dot.mesh.position.x = smallBall.mesh.geometry.vertices[index].x;
             dotsInfo[i].dot.mesh.position.y = smallBall.mesh.geometry.vertices[index].y;
             dotsInfo[i].dot.mesh.position.z = smallBall.mesh.geometry.vertices[index].z;
         }
-
 
         if (rotation == true) {
             earth.mesh.rotation.y += 0.2 * Math.PI / 180;
@@ -453,6 +435,8 @@
         controls.update();
         renderer.render(scene, camera);
         stats.update();
+        rotation = true;
+
         requestAnimationFrame(loop);
     }
 
@@ -493,6 +477,21 @@
         mouse.clientY = event.clientY;
         mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
         mouse.y = -( event.clientY / window.innerHeight ) * 2 + 1;
+        var intersects = raycaster.intersectObjects(dotsInfoObject.children);
+        for (var i = 0; i < intersects.length; i++) {
+            console.log(mouse.clientX);
+            if (dotShow == true ) {
+                if (!tipShow) {
+                    tip.style.opacity = 1;
+                    tipShow = true;
+                    var x = mouse.clientX + 100 * Math.sin(Math.random() * Math.PI * 2);
+                    var y = mouse.clientY + 100 * Math.cos(Math.random() * Math.PI * 2);
+                    tip.style.left = x + "px";
+                    tip.style.top = y + "px";
+                }
+                rotation = false;
+            }
+        }
 
     }
 
@@ -515,7 +514,6 @@
         initAnimation();
         initEvent();
         loop();
-        tip.style.opacity = 0;
     }
 
     loader.load("../img/dotGray.png",function (texture) {
