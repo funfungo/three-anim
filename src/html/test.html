@@ -87,8 +87,8 @@
                     if(wave_type==2) radius_addon=wave_height*smooth_pct*Math.cos((angle+Math.PI/180*120+speed_incrementer)*anim_shape);
                 }
 
-                var x = (radius+radius_addon) * Math.cos(angle);
-                var y = (radius+radius_addon) * Math.sin(angle);
+                var x = (radius+radius_addon) * Math.cos(angle+speed_incrementer);
+                var y = (radius+radius_addon) * Math.sin(angle+speed_incrementer);
                 var z=0;
 
                 new_poistions.push([x,y,z]);
